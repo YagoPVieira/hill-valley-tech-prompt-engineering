@@ -1,7 +1,8 @@
 # Questão 01 · Dockerfile para o Lift
 
 **Framework:** R-T-F (Role · Task · Format)
-**Modelo utilizado:** ChatGPT (OpenAI)
+
+**Modelo:** ChatGPT, plano gratuito (OpenAI, modelo padrão, sem o modo Pensar). Escolhido por ser um modelo de uso geral e acessível, para avaliar se um prompt bem estruturado com R-T-F basta para gerar um Dockerfile pronto para produção.
 
 ## Cenário
 
@@ -209,21 +210,10 @@ docker rm lift-api
 
 ## Justificativa
 
-O prompt foi dividido em três seções explícitas (`# ROLE`, `# TASK`, `# FORMAT`), uma para cada componente do framework.
+O **Role** (seção `# ROLE`) define um engenheiro DevOps sênior especialista em containers e segurança para Kubernetes, direcionando o modelo para decisões de produção e não apenas "um Dockerfile que funciona". A **Task** (seção `# TASK`) traz todo o contexto do enunciado e transforma "seguir as boas práticas" em 10 requisitos verificáveis, como não embutir segredos nem declarar `HEALTHCHECK`. O **Format** (seção `# FORMAT`) fixa quatro entregáveis em ordem, incluindo uma tabela de conformidade que permite auditar o output requisito por requisito.
 
-| Componente | Onde aparece no prompt | Por que importa |
-|---|---|---|
-| **Role** | Seção `# ROLE`: engenheiro DevOps sênior, especialista em containerização Python e segurança de imagens para Kubernetes em produção. | Direciona o modelo para as decisões de quem já colocou imagens em produção, puxando segurança e otimização por padrão, e não apenas "um Dockerfile que funciona". |
-| **Task** | Seção `# TASK`: objetivo, todo o contexto do enunciado (estrutura, `requirements.txt`, porta, comando do Gunicorn, variáveis de ambiente) e 10 requisitos numerados. | Transforma "seguir as boas práticas" (vago) em critérios verificáveis. Também previne erros comuns, como embutir segredos na imagem via `ENV`/`ARG` ou declarar um `HEALTHCHECK` que o Kubernetes ignora. |
-| **Format** | Seção `# FORMAT`: ordem fixa de quatro entregáveis (Dockerfile comentado, `.dockerignore`, tabela de conformidade, comandos de teste). | Deixa a saída pronta para uso e auditável: a tabela permite conferir requisito por requisito se o modelo cumpriu tudo. |
+## Observações sobre o output
 
-### Análise do resultado
-
-O output atendeu aos 10 requisitos, como mostra a tabela de conformidade gerada pelo próprio modelo. Destaques:
-
-- A imagem foi fixada em uma versão de patch (`3.12.8-slim`), mais restrita que o pedido, o que deixa o build reproduzível.
-- O estágio de build instala as dependências com `--prefix=/install`, e o estágio final copia só esse diretório, sem resíduos do build.
-- O código entra com `--chown=appuser:appgroup`, e só `app.py` e `lib/` são copiados, então `tests/` fica fora da imagem por dois caminhos (cópia seletiva e `.dockerignore`).
-- Nenhum segredo aparece no Dockerfile. Os valores só são passados em tempo de execução (`-e` no teste local, Secret no Kubernetes).
-
-Ponto de atenção: o modelo adicionou uma observação final fora das quatro seções, desviando levemente da instrução "sem texto fora dessas seções". O conteúdo é útil (explica por que `localhost` não alcança o banco do host), mas mostra que restrições negativas de formato nem sempre são seguidas à risca, e poderiam ser reforçadas no prompt.
+- Pontos fortes: cumpriu os 10 requisitos; fixou a imagem numa versão de patch (`3.12.8-slim`), mais restrita que o pedido; instalou as dependências com `--prefix=/install` e copiou só esse diretório para a imagem final; e copiou apenas `app.py` e `lib/`, deixando `tests/` fora por dois caminhos.
+- Pontos fracos: adicionou uma observação final fora das quatro seções, desrespeitando o "sem texto fora dessas seções"; o usuário não-root não tem UID fixo, o que dificulta configurar `runAsUser` no Kubernetes; o código pertence ao próprio usuário da aplicação, que pode alterá-lo em runtime; e o build usa a tag `latest`.
+- O que faria diferente: reforçar a restrição de formato ("não adicione observações finais") e incluir no Task "usuário com UID/GID fixos, código somente leitura para o processo e tag de imagem versionada".
